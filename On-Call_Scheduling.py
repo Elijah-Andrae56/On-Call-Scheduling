@@ -1,6 +1,9 @@
 """Elijah Andrae
 This project is built in great colaberation with GPT-o1"""
 
+NUMBER_PREFERRED_SHIFTS = 15
+NUMBER_UNAVAILABLE_SHIFTS = 10
+
 from ortools.sat.python import cp_model
 
 # Step 1: Define the data
@@ -27,7 +30,7 @@ roles = [0, 1]  # 0: Primary, 1: Secondary
 
 import random
 
-random.seed(42)  # For reproducibility
+# random.seed(42)  # For reproducibility
 
 # Initialize dictionaries to hold preferences and unavailabilities
 preferences = {}     # preferences[ra] = set of preferred (day, role)
@@ -35,10 +38,10 @@ unavailabilities = {}  # unavailabilities[ra] = set of (day)
 
 for ra in ras:
     # Randomly select 15 preferred weekdays (roles are ignored for preferences)
-    preferred_weekdays = random.sample([d for d in range(num_days) if weekend[d] == 0], 15)
+    preferred_weekdays = random.sample([d for d in range(num_days) if weekend[d] == 0], NUMBER_PREFERRED_SHIFTS)
     preferences[ra] = set(preferred_weekdays)
     # Randomly select days the RA is unavailable (up to 5 days)
-    unavailable_days = random.sample(range(num_days), random.randint(0, 5))
+    unavailable_days = random.sample(range(num_days), random.randint(0, NUMBER_UNAVAILABLE_SHIFTS))
     unavailabilities[ra] = set(unavailable_days)
 
 # Step 2: Create the model
@@ -111,6 +114,12 @@ for ra_index, ra in enumerate(ras):
     for day in range(num_days):
         for ra_index in range(num_ras):
             model.Add(x[ra_index][day][0] + x[ra_index][day][1] <= 1)
+
+# Constraint 7: Ensure no RA works more than 3 consecutive days
+for ra_index, ra in enumerate(ras):
+    for start_day in range(num_days - 3):  # Subtract 3 to prevent index out of range
+        model.Add(sum(x[ra_index][day][role] for day in range(start_day, start_day + 4) for role in roles) <= 3)
+
  
 
 # Step 5: Define the objective function
