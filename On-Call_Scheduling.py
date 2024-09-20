@@ -1,12 +1,51 @@
-"""Elijah Andrae
-This project is built in great colaberation with GPT-o1"""
+"""Elijah Andrae Summer 2024"""
 
-NUMBER_PREFERRED_SHIFTS = 15
-NUMBER_UNAVAILABLE_SHIFTS = 10
 
+import datetime as dt
 from ortools.sat.python import cp_model
+import random
 
-# Step 1: Define the data
+# First, define the Date and DateManager
+class Date:
+    def __init__(self, date, day_number, is_weekend):
+        self.date = date
+        self.day_number = day_number
+        self.is_weekend = is_weekend
+
+    def __str__(self):
+        return f"{self.date}, {self.day_number}, {self.is_weekend}"
+
+class DateManager:
+    def __init__(self, start_date: dt.datetime, end_date: dt.datetime):
+        self.days = self.generate_days(start_date, end_date)
+        shift_days = self.count_days()
+        self.weekend_shift_count = shift_days[0]
+        self.weekday_shift_count = shift_days[1]
+
+    def __str__(self):
+        return str([str(day) for day in self.days])
+
+    def generate_days(self, start_date, end_date):
+        num_days = (end_date - start_date).days + 1
+        days = []
+        for i in range(num_days):
+            current_date = start_date + dt.timedelta(days=i)
+            day_number = current_date.weekday()  # 0=Monday, 6=Sunday
+            is_weekend = day_number >= 4 and day_number <= 5  # Friday (4) and Saturday (5)
+            days.append(Date(current_date, day_number, is_weekend))
+        return days
+
+    def count_days(self):
+        num_weekend_days = sum(1 for day in self.days if day.is_weekend)
+        num_week_days = len(self.days) - num_weekend_days
+        return (num_weekend_days, num_week_days)
+
+# Initialize the DateManager with your desired date range
+start_date = dt.datetime(2024, 9, 23)
+end_date = dt.datetime(2024, 12, 13)
+time_range = DateManager(start_date, end_date)
+
+# Now, proceed with the scheduling code from your second file
 
 # List of RAs
 ras = ['RA1', 'RA2', 'RA3', 'RA4', 'RA5', 'RA6', 'RA7', 'RA8',
@@ -14,41 +53,38 @@ ras = ['RA1', 'RA2', 'RA3', 'RA4', 'RA5', 'RA6', 'RA7', 'RA8',
 
 num_ras = len(ras)
 
-# Define the schedule period (e.g., 30 days)
-num_days = 90
+# Number of days from DateManager
+num_days = len(time_range.days)
 
-# For simplicity, let's assume day 0 is a Monday
-# Define whether each day is a weekday (0) or weekend (1)
-weekend = [1 if (day % 7) in [5, 6] else 0 for day in range(num_days)]
+# Build the weekend list from DateManager
+weekend = [1 if day.is_weekend else 0 for day in time_range.days]
 
 # Each day has two roles: primary (0) and secondary (1)
 roles = [0, 1]  # 0: Primary, 1: Secondary
 
-# RAs' preferences and unavailabilities
-# For this example, we'll create random preferences and unavailabilities
-# In a real scenario, you would collect this data from the RAs
-
-import random
-
-# random.seed(42)  # For reproducibility
+# Constants for preferred and unavailable shifts
+NUMBER_PREFERRED_SHIFTS = 15
+NUMBER_UNAVAILABLE_SHIFTS = 30
 
 # Initialize dictionaries to hold preferences and unavailabilities
-preferences = {}     # preferences[ra] = set of preferred (day, role)
-unavailabilities = {}  # unavailabilities[ra] = set of (day)
+preferences = {}     # preferences[ra] = set of preferred days
+unavailabilities = {}  # unavailabilities[ra] = set of days
 
 for ra in ras:
-    # Randomly select 15 preferred weekdays (roles are ignored for preferences)
-    preferred_weekdays = random.sample([d for d in range(num_days) if weekend[d] == 0], NUMBER_PREFERRED_SHIFTS)
+    # Randomly select preferred weekdays (up to the number available)
+    weekday_indices = [i for i in range(num_days) if weekend[i] == 0]
+    preferred_weekdays = random.sample(
+        weekday_indices, min(NUMBER_PREFERRED_SHIFTS, len(weekday_indices)))
     preferences[ra] = set(preferred_weekdays)
-    # Randomly select days the RA is unavailable (up to 5 days)
-    unavailable_days = random.sample(range(num_days), random.randint(0, NUMBER_UNAVAILABLE_SHIFTS))
+    # Randomly select unavailable days (up to the number available)
+    unavailable_days = random.sample(
+        range(num_days), random.randint(0, min(NUMBER_UNAVAILABLE_SHIFTS, num_days)))
     unavailabilities[ra] = set(unavailable_days)
 
-# Step 2: Create the model
+# Create the model
 model = cp_model.CpModel()
 
-# Step 3: Define variables
-# x[ra_index][day][role] = 1 if RA is assigned to day and role
+# Define variables
 x = {}
 for ra_index, ra in enumerate(ras):
     x[ra_index] = {}
@@ -57,9 +93,7 @@ for ra_index, ra in enumerate(ras):
         for role in roles:
             x[ra_index][day][role] = model.NewBoolVar(f'x_{ra}_{day}_{role}')
 
-# Step 4: Add constraints
-
-# Constraint 1: Each shift (day and role) must have exactly one RA assigned
+# Constraint 1: Each shift must have exactly one RA assigned
 for day in range(num_days):
     for role in roles:
         model.Add(sum(x[ra_index][day][role] for ra_index in range(num_ras)) == 1)
@@ -70,7 +104,15 @@ for ra_index, ra in enumerate(ras):
         for role in roles:
             model.Add(x[ra_index][day][role] == 0)
 
-# Constraint 3: Each RA must have 3-4 weekend shifts
+# Compute total weekend and weekday shifts
+total_weekend_shifts = weekend.count(1) * len(roles)
+total_weekday_shifts = weekend.count(0) * len(roles)
+
+# Compute per-RA shift counts
+per_ra_weekend_shifts = total_weekend_shifts // num_ras
+per_ra_weekday_shifts = total_weekday_shifts // num_ras
+
+# Constraints for weekend shifts per RA
 for ra_index, ra in enumerate(ras):
     num_weekend_shifts = sum(
         x[ra_index][day][role]
@@ -78,10 +120,10 @@ for ra_index, ra in enumerate(ras):
         for role in roles
         if weekend[day] == 1
     )
-    model.Add(num_weekend_shifts >= 3)
-    model.Add(num_weekend_shifts <= 4)
+    model.Add(num_weekend_shifts >= per_ra_weekend_shifts)
+    model.Add(num_weekend_shifts <= per_ra_weekend_shifts + 1)
 
-# Constraint 4: Each RA must have 8-9 weekday shifts
+# Constraints for weekday shifts per RA
 for ra_index, ra in enumerate(ras):
     num_weekday_shifts = sum(
         x[ra_index][day][role]
@@ -89,8 +131,8 @@ for ra_index, ra in enumerate(ras):
         for role in roles
         if weekend[day] == 0
     )
-    model.Add(num_weekday_shifts >= 8)
-    model.Add(num_weekday_shifts <= 9)
+    model.Add(num_weekday_shifts >= per_ra_weekday_shifts)
+    model.Add(num_weekday_shifts <= per_ra_weekday_shifts + 1)
 
 # Constraint 5: Balance primary and secondary shifts for each RA
 for ra_index, ra in enumerate(ras):
@@ -103,42 +145,40 @@ for ra_index, ra in enumerate(ras):
         for day in range(num_days)
     )
     # The difference between primary and secondary shifts should be at most 1
-    diff = model.NewIntVar(0, num_days, f'diff_{ra_index}') # Assume num_days as the max possible difference for simplicity
-    
-    model.AddAbsEquality(diff, num_primary - num_secondary)
-    # The modified version of the constraint: the difference should be at most 1
-    model.Add(diff <= 1)
+    model.AddAbsEquality(model.NewIntVar(0, num_days, ''), num_primary - num_secondary)
+    model.Add(num_primary - num_secondary <= 1)
+    model.Add(num_primary - num_secondary >= -1)
 
 # Constraint 6: Ensure the primary and secondary RA is not the same person on any given day
-for ra_index, ra in enumerate(ras):
-    for day in range(num_days):
-        for ra_index in range(num_ras):
-            model.Add(x[ra_index][day][0] + x[ra_index][day][1] <= 1)
+for day in range(num_days):
+    for ra_index in range(num_ras):
+        model.Add(x[ra_index][day][0] + x[ra_index][day][1] <= 1)
 
 # Constraint 7: Ensure no RA works more than 3 consecutive days
 for ra_index, ra in enumerate(ras):
-    for start_day in range(num_days - 3):  # Subtract 3 to prevent index out of range
-        model.Add(sum(x[ra_index][day][role] for day in range(start_day, start_day + 4) for role in roles) <= 3)
+    for start_day in range(num_days - 3):
+        total_shifts = sum(
+            x[ra_index][day][role]
+            for day in range(start_day, start_day + 4)
+            for role in roles
+        )
+        model.Add(total_shifts <= 3)
 
- 
-
-# Step 5: Define the objective function
-# Maximize the number of preferred shifts assigned
+# Define the objective function
 total_preferences = []
 for ra_index, ra in enumerate(ras):
     for day in range(num_days):
         for role in roles:
             if day in preferences[ra] and weekend[day] == 0:
-                # Only consider weekday preferences
                 total_preferences.append(x[ra_index][day][role])
 
 model.Maximize(sum(total_preferences))
 
-# Step 6: Solve the model
+# Solve the model
 solver = cp_model.CpSolver()
 status = solver.Solve(model)
 
-# Step 7: Output the results
+# Output the results
 if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
     print('Solution found:')
     schedule = {}
@@ -148,12 +188,15 @@ if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
             for ra_index, ra in enumerate(ras):
                 if solver.Value(x[ra_index][day][role]) == 1:
                     schedule[day][role] = ra
-                    break  # Move to the next role
-    # Print the schedule
+                    break
+    # Print the schedule with actual dates
     for day in range(num_days):
-        day_type = 'Weekend' if weekend[day] == 1 else 'Weekday'
-        print(f'Day {day} ({day_type}):')
+        date_info = time_range.days[day]
+        day_type = 'Weekend' if date_info.is_weekend else 'Weekday'
+        date_str = date_info.date.strftime('%Y-%m-%d')
+        print(f'Day {day} ({date_str}, {day_type}):')
         print(f"  Primary RA: {schedule[day][0]}")
         print(f"  Secondary RA: {schedule[day][1]}")
 else:
     print('No feasible solution found.')
+
