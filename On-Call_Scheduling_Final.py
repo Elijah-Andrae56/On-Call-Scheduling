@@ -297,7 +297,7 @@ if __name__ == "__main__":
     scheduler = Scheduler(time_range)
 
     # Path to your CSV file
-    file_path = 'Schedule/On-Call Availability .csv'
+    file_path = 'Schedule/test_data.csv'
 
     scheduler.load_data(file_path)
     scheduler.parse_data()
