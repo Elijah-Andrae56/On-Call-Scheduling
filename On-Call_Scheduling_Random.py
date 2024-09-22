@@ -187,6 +187,7 @@ class Scheduler:
                         if self.solver.Value(self.x[ra_index][day][role]) == 1:
                             schedule[day][role] = ra
                             break
+
             # Print the schedule with actual dates
             for day in range(self.num_days):
                 date_info = self.time_range.days[day]
@@ -200,7 +201,7 @@ class Scheduler:
 
 # Usage
 if __name__ == "__main__":
-    start_date = dt.datetime(2024, 9, 23)
+    start_date = dt.datetime(2024, 9, 30)
     end_date = dt.datetime(2024, 12, 13)
     time_range = DateManager(start_date, end_date)
     ras = ["Andrew", "Callie", "Daria", "Erin", "Esperanza", "Hallie", 
