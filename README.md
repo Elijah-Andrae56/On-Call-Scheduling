@@ -164,7 +164,7 @@ For any questions or suggestions, please contact Elijah Andrae at [elijah.andrae
 # Acknowledgments
 
 - [Google OR-Tools](https://developers.google.com/optimization) for the constraint programming library.
-- The RA team for providing availability data.
+- The Barnhart RA team for providing test-availability data.
 - ChatGPT-4o and ChatGPT-o1
 
 # Notes
