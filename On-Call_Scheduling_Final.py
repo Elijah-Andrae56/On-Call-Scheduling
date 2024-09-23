@@ -58,27 +58,22 @@ class Scheduler:
 
     def load_data(self, file_path):
         """
-        The load_data method does the following:
-        1. Reads the csv using the pandas library
-        2. Renames the 2nd column from whatever was in the google form to "Name"
-        3. Renames the 3rd column from whatever was in the google form to "95#"
-        4. For each week i in total weeks N:
-          4a. Renames the 3+i column to "Availability Week i+1"
-          4b. Renames the 3+N+i column to "Unavailability Week i+1"
-        5. Converts each timestamp in the 'Timestamp' column from 
-            "yyyy/mm/dd hh:mm:ss AM|PM XYZ" (12 hour clock) 
-            to "yyyy-mm-dd hh:mm:ss" (24 hour clock)
-        6. Sorts table by:
-          6a. Ascending 95#
-          6b. Descending timestamp 
-        (effectively placing most-recent timestamp at the top)
-        7. Remove duplicate entries based on 95#, while keeping only the first.
-        8. Store contents of 'Name' column to self.ras list
-        9. Store length of self.ras list to self.num_ras
-        10. create dictionary mapping of RA Name : Index within the self.ras list.
+        @brief: The load_data method uses the Pandas library to read a CSV file
+        and create a dataframe table with the following columns: Timestamp,
+        Name, 95#, Availability Week [1,11], and Unavailability Week [1,11].
 
-        The end dataframe's columns should look like:
-        Timestamp | Name | 95# | Availability Week (1,11) | Unavailability Week (1,11)
+        @params:
+        1. file_path <str>: path/to/file.csv
+
+        @return:
+        1. self.data <dataframe>: table containing the data from the csv file.
+        2. self.ras <list>: array representation of the 'Name' column.
+        3. self.num_ras <int>: length of self.ras
+        4. self.ra_to_index <dict>: mapping from RA name to index in self.ras.
+
+        @note: The input csv does not need to have column names that match the
+        output dataframe table. That said, the content of the input csv must
+        match the output dataframe table.
         """
         # Read csv using Pandas
         df = pd.read_csv(file_path)
