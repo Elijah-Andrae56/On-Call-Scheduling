@@ -67,7 +67,7 @@ By filling out this form, you provide the necessary data for the scheduler to ge
 
 1. **Prepare the Availability Data**
 
-   Ensure all RAs have filled out the [On-Call Availability Form](#) (insert the actual link). The responses should be collected and saved as a CSV file.
+   Ensure all RAs have filled out the [On-Call Availability Form](https://docs.google.com/forms/d/e/1FAIpQLScU_GKuOyepmiIuW-9scQHOhAViftG3sAhm7SkTvF2Zr-zV7Q/viewform?usp=sf_link). The responses should be collected and saved as a CSV file.
 
 2. **Set the Date Range**
 
