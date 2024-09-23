@@ -51,7 +51,7 @@ By filling out this form, you provide the necessary data for the scheduler to ge
 1. **Clone the Repository**
 
    ```bash
-   git clone https://github.com/yourusername/ra-shift-scheduler.git
+   git clone https://github.com/Elijah-Andrae56/On-Call-Scheduling.git
    cd ra-shift-scheduler
    ```
 
