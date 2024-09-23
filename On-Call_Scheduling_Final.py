@@ -57,39 +57,70 @@ class Scheduler:
         self.data = None  # Placeholder for the data from the form
 
     def load_data(self, file_path):
-        # Read the CSV file
+        """
+        The load_data method does the following:
+        1. Reads the csv using the pandas library
+        2. Renames the 2nd column from whatever was in the google form to "Name"
+        3. Renames the 3rd column from whatever was in the google form to "95#"
+        4. For each week i in total weeks N:
+          4a. Renames the 3+i column to "Availability Week i+1"
+          4b. Renames the 3+N+i column to "Unavailability Week i+1"
+        5. Converts each timestamp in the 'Timestamp' column from 
+            "yyyy/mm/dd hh:mm:ss AM|PM XYZ" (12 hour clock) 
+            to "yyyy-mm-dd hh:mm:ss" (24 hour clock)
+        6. Sorts table by:
+          6a. Ascending 95#
+          6b. Descending timestamp 
+        (effectively placing most-recent timestamp at the top)
+        7. Remove duplicate entries based on 95#, while keeping only the first.
+        8. Store contents of 'Name' column to self.ras list
+        9. Store length of self.ras list to self.num_ras
+        10. create dictionary mapping of RA Name : Index within the self.ras list.
+
+        The end dataframe's columns should look like:
+        Timestamp | Name | 95# | Availability Week (1,11) | Unavailability Week (1,11)
+        """
+        # Read csv using Pandas
         df = pd.read_csv(file_path)
 
-        # Rename columns if necessary
-        if df.columns[1] != 'Name':
-            df = df.rename(columns={df.columns[1]: 'Name', df.columns[2]: '95#'})
+        # The first three columns are defined.
+        OFFSET = 3
 
-        # Check if the availability columns are already correctly named
-        if not any(col.startswith('Availability Week') for col in df.columns):
-            # Rename Availability and Unavailability columns
-            week = 1
-            start = 3  # Adjust based on your actual CSV structure
-            total_columns = len(df.columns)
-            num_weeks = (total_columns - start) // 2
+        # The next N columns are dynamically defined.
+        num_weeks = (len(df.columns) - OFFSET) // 2
 
-            for i in range(num_weeks):
-                avail_col = start + i
-                unavail_col = start + num_weeks + i
-                df = df.rename(columns={df.columns[avail_col]: f'Availability Week {week}'})
-                df = df.rename(columns={df.columns[unavail_col]: f'Unavailability Week {week}'})
-                week += 1
+        # Enforce naming on the dataframe's columns.
+        df = df.rename(columns={
+            **{
+            df.columns[0]: "Timestamp",
+            df.columns[1]: 'Name', 
+            df.columns[2]: '95#'},
+            **{
+            df.columns[i+OFFSET]: f"Availability Week {i+1}"
+            for i in range(num_weeks)
+            },
+            **{
+            df.columns[i+OFFSET+num_weeks]: f"Unavailability Week {i+1}" 
+            for i in range(num_weeks)
+            },
+        })
 
-        # Process Timestamp
-        df['Timestamp'] = pd.to_datetime(df['Timestamp'].str[:-4], format='%Y/%m/%d %I:%M:%S %p')
+        # Convert 'Google Form' timestamps (ts) to Pandas datatimes.
+        ts_series = df['Timestamp'].str[:-4]
+        ts_format = r"%Y/%m/%d %I:%M:%S %p"
+        df['Timestamp'] = pd.to_datetime(ts_series, format=ts_format)
+
+        # Sort Dataframe by ascending 95# and descending timestamp.
         df = df.sort_values(by=['95#', 'Timestamp'], ascending=[True, False])
+
+        # Keep only the most-recent entry for each 95#.
         df = df.drop_duplicates(subset='95#', keep='first')
-
+       
+        # (We might want to return df here for cleaner code)
+        # E.g. Function (input: df) -> "set a bunch of self.attributes"
         self.data = df
-
-        # Populate the list of RAs
         self.ras = self.data['Name'].tolist()
         self.num_ras = len(self.ras)
-        # Create a mapping from RA names to indices
         self.ra_to_index = {ra_name: index for index, ra_name in enumerate(self.ras)}
 
     def parse_data(self):
@@ -297,7 +328,7 @@ if __name__ == "__main__":
     scheduler = Scheduler(time_range)
 
     # Path to your CSV file
-    file_path = 'Schedule/test_data.csv'
+    file_path = './test_data.csv'
 
     scheduler.load_data(file_path)
     scheduler.parse_data()
