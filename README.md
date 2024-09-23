@@ -155,7 +155,7 @@ Day 1 (2024-09-30, Weekday, Week 1):
 
 ## License
 
-This project is licensed under the MIT License. 
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 # Contact
 
