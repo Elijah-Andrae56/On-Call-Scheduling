@@ -204,8 +204,10 @@ if __name__ == "__main__":
     start_date = dt.datetime(2024, 9, 30)
     end_date = dt.datetime(2024, 12, 13)
     time_range = DateManager(start_date, end_date)
-    ras = ["Andrew", "Callie", "Daria", "Erin", "Esperanza", "Hallie", 
-       "Jemima", "Joseph", "Kai", "Kalina", "Mason", "Sam", "Eli"]
+    ras = ["Alex", "Blake", "Casey", "Dylan", "Emery", "Finley", 
+       "Gray", "Harper", "Jordan", "Kendall", "Logan", "Morgan", "Quinn"
+          'Jon', 'Bob', 'Jake'] # AI Generated names (I hate naming things)
+
 
     scheduler = Scheduler(ras, time_range)
     
