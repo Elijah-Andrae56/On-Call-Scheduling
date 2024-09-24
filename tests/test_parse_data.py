@@ -1,0 +1,34 @@
+import unittest
+import datetime as dt
+import os
+import sys
+
+# Add parent directory to PATH
+current_directory = os.path.dirname(os.path.realpath(__file__))  # pwd
+parent_directory = os.path.dirname(current_directory)            # cd ..
+sys.path.append(parent_directory)                                # add parent dir to PATH
+
+# Now import from file in the parent directory.
+from on_call_scheduling_final import DateManager, Scheduler
+
+
+class TestParseData(unittest.TestCase):
+
+    def test_on_call_scheduling(self):
+        # This is what was found in on_call_scheduling_final.py
+        
+        start_date = dt.datetime(2024, 9, 29)  # Enter the date of Sunday Week 1
+        end_date = dt.datetime(2024, 12, 13)   # Enter the date of Friday end of Finals Week
+
+        time_range = DateManager(start_date, end_date)
+        scheduler = Scheduler(time_range)
+
+        # Path to your CSV file
+        file_path = f'{current_directory}/../test_data.csv'
+
+        scheduler.load_data(file_path)
+        scheduler.parse_data()
+
+
+if __name__ == '__main__':
+    unittest.main()

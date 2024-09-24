@@ -1,4 +1,3 @@
-
 """Elijah Andrae Summer 2024"""
 
 from dataclasses import dataclass
@@ -314,22 +313,3 @@ class Scheduler:
                 print(f"  Secondary RA: {schedule[day].get(1, 'Unassigned')}")
         else:
             print('No feasible solution found.')
-
-if __name__ == "__main__":
-    start_date = dt.datetime(2024, 9, 29)  # Enter the date of Sunday Week 1
-    end_date = dt.datetime(2024, 12, 13)   # Enter the date of Friday end of Finals Week
-
-    time_range = DateManager(start_date, end_date)
-    scheduler = Scheduler(time_range)
-
-    # Path to your CSV file
-    file_path = './test_data.csv'
-
-    scheduler.load_data(file_path)
-    scheduler.parse_data()
-
-    scheduler.build_model()
-    scheduler.add_constraints()
-    scheduler.define_objective()
-    scheduler.solve()
-    scheduler.print_schedule()
