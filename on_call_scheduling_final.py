@@ -291,7 +291,16 @@ class Scheduler:
         self.solver = cp_model.CpSolver()
         self.status = self.solver.Solve(self.model)
 
-    def print_schedule(self):
+    def run(self):
+        self.build_model()
+        self.add_constraints()
+        self.define_objective()
+        self.solve()
+
+    def print_schedule(self): 
+        # Should we make this a __str__?
+        #  We would have to reorganize the code but it might be for the better
+        # Then we could output the actual results into a dataframe
         # Output the results
         if self.status == cp_model.OPTIMAL or self.status == cp_model.FEASIBLE:
             print('Solution found:')
