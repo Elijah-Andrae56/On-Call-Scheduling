@@ -24,7 +24,8 @@ class TestScheduleFinal(unittest.TestCase):
         scheduler = Scheduler(time_range)
 
         # Path to your CSV file
-        file_path = f'{current_directory}/../test_data.csv'
+        file_path = f'{current_directory}/../example_1.csv' # Can you explain this to me? I couldn't figure out how to make it work.
+        # file_path = f'Schedule/tests/data/example_1.csv'
 
         scheduler.load_data(file_path)
         scheduler.parse_data()
