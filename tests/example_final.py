@@ -12,9 +12,9 @@ sys.path.append(parent_directory)                                # add parent di
 from on_call_scheduling_final import DateManager, Scheduler
 
 
-class TestParseData(unittest.TestCase):
+class TestScheduleFinal(unittest.TestCase):
 
-    def test_on_call_scheduling(self):
+    def test_on_call_scheduling_final(self):
         # This is what was found in on_call_scheduling_final.py
         
         start_date = dt.datetime(2024, 9, 29)  # Enter the date of Sunday Week 1
