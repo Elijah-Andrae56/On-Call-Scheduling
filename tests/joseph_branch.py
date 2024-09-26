@@ -16,9 +16,9 @@ class TestJosephBranch(unittest.TestCase):
         path_to_csv = current_directory + r'/data/example_3.csv'
         
         scheduler = Scheduler()
-        
-        scheduler.load_csv(path_to_csv)
 
+        print(scheduler.csv_to_df(path_to_csv))
+        
         # Load CSV
         # Append Constraints
         # Set objective
