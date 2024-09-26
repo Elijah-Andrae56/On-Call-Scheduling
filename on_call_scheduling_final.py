@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import datetime as dt
 from ortools.sat.python import cp_model
 import pandas as pd
+import numpy as np
 
 # Define the Date and DateManager classes
 
@@ -292,33 +293,46 @@ class Scheduler:
         self.status = self.solver.Solve(self.model)
 
     def run(self):
+        """Quickly build the model, add the constraints, 
+            define the objective, and solve the schedule"""
         self.build_model()
         self.add_constraints()
         self.define_objective()
         self.solve()
 
-    def print_schedule(self): 
-        # Should we make this a __str__?
-        #  We would have to reorganize the code but it might be for the better
-        # Then we could output the actual results into a dataframe
-        # Output the results
+    def return_schedule(self):
+        """Returns the schedule in a DataFrame format, returns with columns
+           'Day Number', 'Date', 'Primary RA', 'Secondary RA'"""
+        # FIXME Started working on adding week numbers, then got tired before I figured it out
         if self.status == cp_model.OPTIMAL or self.status == cp_model.FEASIBLE:
-            print('Solution found:')
-            schedule = {}
-            for day in range(self.num_days):
-                schedule[day] = {}
-                for role in self.roles:
-                    for ra_index, ra in enumerate(self.ras):
-                        if self.solver.Value(self.x[ra_index][day][role]) == 1:
-                            schedule[day][role] = ra
-                            break
-            # Print the schedule with actual dates
+            schedule_df = pd.DataFrame()
+            day_numbers = []
+            # week_numbers = []
+            primary_ras = []
+            secondary_ras = []
+            dates = []
             for day in range(self.num_days):
                 date_info = self.time_range.days[day]
-                day_type = 'Weekend' if date_info.is_weekend else 'Weekday'
-                date_str = date_info.date.strftime('%Y-%m-%d')
-                print(f'Day {day} ({date_str}, {day_type}, Week {date_info.week_number}):')
-                print(f"  Primary RA: {schedule[day].get(0, 'Unassigned')}")
-                print(f"  Secondary RA: {schedule[day].get(1, 'Unassigned')}")
+                day_numbers.append("Day " + str(day.week_number))
+                # week_numbers.append("Week " + str(day))
+                dates.append(date_info.date.strftime('%Y-%m-%d'))
+                for role in self.roles:
+                    assigned_ra = "Unassigned"
+                    for ra_index, ra in enumerate(self.ras):
+                        if self.solver.Value(self.x[ra_index][day][role]) == 1:
+                            assigned_ra = ra
+                            break
+                    if role == 0:  # Primary
+                        primary_ras.append(assigned_ra)
+                    else:  # Secondary
+                        secondary_ras.append(assigned_ra)
+     
+            schedule_df['Day Number'] = day_numbers
+            # schedule_df['Week Number'] = week_numbers
+            schedule_df['Date'] = dates
+            schedule_df['Primary RA'] = primary_ras
+            schedule_df['Secondary RA'] = secondary_ras
+            return schedule_df
         else:
             print('No feasible solution found.')
+            return pd.DataFrame()  # Return an empty DataFrame if no solution

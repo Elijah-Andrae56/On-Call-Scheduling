@@ -24,15 +24,20 @@ class TestScheduleFinal(unittest.TestCase):
         scheduler = Scheduler(time_range)
 
         # Path to your CSV file
-        file_path = current_directory + r'/data/example_2.csv'
+        file_path = current_directory + r'/data/example_1.csv'
         
         scheduler.load_data(file_path)
         scheduler.parse_data()
-        scheduler.build_model()
-        scheduler.add_constraints()
-        scheduler.define_objective()
-        scheduler.solve()
-        scheduler.print_schedule()
+        
+        # scheduler.build_model()
+        # scheduler.add_constraints()
+        # scheduler.define_objective()
+        # scheduler.solve()
+        scheduler.run()
+
+        test_schedular = scheduler.return_schedule()
+        print(test_schedular)
 
 if __name__ == '__main__':
     unittest.main()
+    print()
