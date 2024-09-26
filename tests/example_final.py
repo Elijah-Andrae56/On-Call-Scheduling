@@ -24,12 +24,15 @@ class TestScheduleFinal(unittest.TestCase):
         scheduler = Scheduler(time_range)
 
         # Path to your CSV file
-        file_path = f'{current_directory}/data/example_1.csv' # Can you explain this to me? I couldn't figure out how to make it work.
-        # file_path = f'Schedule/tests/data/example_1.csv'
-
+        file_path = current_directory + r'/data/example_2.csv'
+        
         scheduler.load_data(file_path)
         scheduler.parse_data()
-
+        scheduler.build_model()
+        scheduler.add_constraints()
+        scheduler.define_objective()
+        scheduler.solve()
+        scheduler.print_schedule()
 
 if __name__ == '__main__':
     unittest.main()
