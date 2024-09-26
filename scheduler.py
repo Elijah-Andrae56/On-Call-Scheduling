@@ -30,8 +30,9 @@ class Scheduler:
     def __init__(self):
         pass
 
-    def load_csv(self):
-        pass
+    def load_csv(self, path_to_csv: str):
+        print(path_to_csv)
+        
 
     def create_shift_variables(self):
         pass
