@@ -1,4 +1,4 @@
-"""Elijah Andrae Summer 2024"""
+"""Elijah Andrae, Joseph Erlinger; Summer, Fall 2024"""
 
 from dataclasses import dataclass
 import datetime as dt
