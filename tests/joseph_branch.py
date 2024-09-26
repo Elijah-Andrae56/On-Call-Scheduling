@@ -14,7 +14,12 @@ class TestJosephBranch(unittest.TestCase):
 
     def test_branch(self):
         file_path = current_directory + r'/data/example_3.csv'
-        print(file_path)
+        
+        # Load CSV
+        # Append Constraints
+        # Set objective
+        # Solve
+
 
 
 if __name__ == '__main__':
