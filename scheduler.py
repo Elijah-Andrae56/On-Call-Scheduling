@@ -1,5 +1,6 @@
 import datetime as dt
 from ortools.sat.python import cp_model
+from typing import Union
 import pandas as pd
 import numpy as np
 
@@ -20,6 +21,9 @@ class Scheduler:
         self.shifts = {}
         self.shift_requests = {}
         self.model = None
+        self.num_weeks = 0
+        self.num_days = 7
+        self.num_ras = 0
         self.all_weeks = None
         self.all_days = None
         self.all_uoids = []
@@ -31,7 +35,7 @@ class Scheduler:
         df = pd.read_csv(path_to_csv)
 
         # The next N columns are dynamically defined.
-        num_weeks = (df.shape[1] - self.OFFSET) // 2
+        self.num_weeks = (df.shape[1] - self.OFFSET) // 2
 
         # Enforce naming on the dataframe's columns.
         df = df.rename(columns={
@@ -41,11 +45,11 @@ class Scheduler:
             df.columns[2]: '95#'},
             **{
             df.columns[i+self.OFFSET]: f"Availability Week {i+1}"
-            for i in range(num_weeks)
+            for i in range(self.num_weeks)
             },
             **{
-            df.columns[i+self.OFFSET+num_weeks]: f"Unavailability Week {i+1}"
-            for i in range(num_weeks)
+            df.columns[i+self.OFFSET+self.num_weeks]: f"Unavailability Week {i+1}"
+            for i in range(self.num_weeks)
             },
         })
 
@@ -67,10 +71,11 @@ class Scheduler:
             raise ValueError("dataframe should contain even \
             number of available weeks to unavailable weeks.")
         self.model = cp_model.CpModel()
-        self.all_weeks = range(1, (df.shape[1] - self.OFFSET) // 2 + 1)
+        self.all_weeks = range(1, self.num_weeks + 1)
         self.all_days = range(7)  # seven days in a week.
         for _, row in df.iterrows():
             uoid = row["95#"]
+            self.num_ras += 1
             self.all_uoids.append(uoid)
             for w in self.all_weeks:
                 available = row[f"Availability Week {w}"].split(';')
@@ -94,10 +99,28 @@ class Scheduler:
         return None
 
     def set_constraints(self) -> None:
-        # Each shift is assigned to exactly one uoid.
+        # Each shift is assigned to exactly one RA.
         for w in self.all_weeks:
             for d in self.all_days:
                 self.model.add_exactly_one(self.shifts[(uoid, w, d)] for uoid in self.all_uoids)
+
+
+        # Try to distribute the shifts evenly, so that each RA works
+        # min_shifts_per_ra shifts. If this is not possible, because the total
+        # number of shifts is not divisible by the number of ras, some ras will
+        # be assigned one more shift.
+        min_shifts_per_ra = (self.num_weeks * self.num_days) // self.num_ras
+        if self.num_weeks * self.num_days % self.num_ras == 0:
+            max_shifts_per_ra = min_shifts_per_ra
+        else:
+            max_shifts_per_ra = min_shifts_per_ra + 1
+        for uoid in self.all_uoids:
+            num_shifts_worked: Union[cp_model.LinearExpr, int] = 0
+            for w in self.all_weeks:
+                for d in self.all_days:
+                    num_shifts_worked += self.shifts[(uoid, w, d)]
+            self.model.add(min_shifts_per_ra <= num_shifts_worked)
+            self.model.add(num_shifts_worked <= max_shifts_per_ra)
         return None
 
     def set_objective(self):
