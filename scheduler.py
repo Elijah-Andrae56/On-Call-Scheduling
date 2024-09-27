@@ -138,6 +138,7 @@ class Scheduler:
 
         # 3: RAs cannot work more than 3 consecutive shifts
         # BUG: Does not check for consecutive days that cross week boundaries.
+        # Example: Jeff works "Friday, Saturday" of week 1 then works "Sunday, Monday" of week 2.
         for uoid in self.all_uoids:
             for w in self.all_weeks:
                 for start in range(self.num_days - 3):
