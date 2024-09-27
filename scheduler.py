@@ -124,7 +124,14 @@ class Scheduler:
         return None
 
     def set_objective(self):
-       pass
+       self.model.maximize(
+        sum(
+            self.shift_requests[(uoid, w, d)] * self.shifts[(uoid, w, d)]
+            for uoid in self.all_uoids
+            for w in self.all_weeks
+            for d in self.all_days
+        )
+    )
 
     def solve(self):
        pass
