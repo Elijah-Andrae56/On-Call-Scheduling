@@ -10,21 +10,18 @@ sys.path.append(parent_directory)                                # add parent di
 # Now import from file in the parent directory.
 from scheduler import Scheduler
 
+
 class TestJosephBranch(unittest.TestCase):
 
     def test_branch(self):
-        path_to_csv = current_directory + r'/data/example_3.csv'
-        
-        scheduler = Scheduler()
-
+        path_to_csv = current_directory + r'/data/example_1.csv'
+        scheduler = Scheduler(leading_offset=3, trailing_offset=0)
         df = scheduler.csv_to_df(path_to_csv)
         scheduler.load_df(df)
         scheduler.set_constraints()
         scheduler.set_objective()
-        # Append Constraints
-        # Set objective
-        # Solve
-
+        scheduler.solve()
+        scheduler.print_schedule()
 
 
 if __name__ == '__main__':
