@@ -1,8 +1,6 @@
-import datetime as dt
 from ortools.sat.python import cp_model
 from typing import Union, Iterable
 import pandas as pd
-import numpy as np
 
 
 DAY_TO_INT = {
@@ -15,6 +13,7 @@ DAY_TO_INT = {
     "Friday": 5,
     "Saturday": 6
 }
+
 
 INT_TO_DAY = {
     DAY_TO_INT["Sunday"]: "Sunday",
@@ -116,13 +115,11 @@ class Scheduler:
         return None
 
     def set_constraints(self) -> None:
-        # Each shift is assigned to exactly one RA.
+        # 1: Each shift is assigned to exactly one RA.
         for w in self.all_weeks:
             for d in self.all_days:
                 self.model.add_exactly_one(self.shifts[(uoid, w, d)] for uoid in self.all_uoids)
-
-
-        # Try to distribute the shifts evenly, so that each RA works
+        # 2: Try to distribute the shifts evenly, so that each RA works
         # min_shifts_per_ra shifts. If this is not possible, because the total
         # number of shifts is not divisible by the number of ras, some ras will
         # be assigned one more shift.
@@ -140,18 +137,20 @@ class Scheduler:
             self.model.add(num_shifts_worked <= max_shifts_per_ra)
         return None
 
-    def set_objective(self):
-       self.model.maximize(
-        sum(
-            self.shift_requests[(uoid, w, d)] * self.shifts[(uoid, w, d)]
-            for uoid in self.all_uoids
-            for w in self.all_weeks
-            for d in self.all_days
+    def set_objective(self) -> None:
+        self.model.maximize(
+            sum(
+                self.shift_requests[(uoid, w, d)] * self.shifts[(uoid, w, d)]
+                for uoid in self.all_uoids
+                for w in self.all_weeks
+                for d in self.all_days
+            )
         )
-    )
+        return None
 
-    def solve(self):
+    def solve(self) -> None:
         self.status = self.solver.solve(self.model)
+        return None
 
     def print_schedule(self) -> None:
         if self.status == cp_model.OPTIMAL:
