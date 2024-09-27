@@ -13,9 +13,9 @@ sys.path.append(parent_directory)                                # add parent di
 from scheduler import Scheduler
 
 
-class TestJosephBranch(unittest.TestCase):
+class TestScheduler(unittest.TestCase):
 
-    def test_branch(self):
+    def test_scheduler(self):
         path_to_csv = current_directory + r'/data/example_1.csv'
         scheduler = Scheduler(leading_offset=3, trailing_offset=0)
         df = scheduler.csv_to_df(path_to_csv)
