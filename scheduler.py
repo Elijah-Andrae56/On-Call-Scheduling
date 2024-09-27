@@ -20,6 +20,9 @@ class Scheduler:
         self.shifts = {}
         self.shift_requests = {}
         self.model = None
+        self.all_weeks = None
+        self.all_days = None
+        self.all_uoids = []
         self.OFFSET = 3
 
     
@@ -28,7 +31,7 @@ class Scheduler:
         df = pd.read_csv(path_to_csv)
 
         # The next N columns are dynamically defined.
-        num_weeks = (len(df.columns) - self.OFFSET) // 2
+        num_weeks = (df.shape[1] - self.OFFSET) // 2
 
         # Enforce naming on the dataframe's columns.
         df = df.rename(columns={
@@ -64,11 +67,12 @@ class Scheduler:
             raise ValueError("dataframe should contain even \
             number of available weeks to unavailable weeks.")
         self.model = cp_model.CpModel()
-        num_weeks = (df.shape[1] - self.OFFSET) // 2
+        self.all_weeks = range(1, (df.shape[1] - self.OFFSET) // 2 + 1)
+        self.all_days = range(7)  # seven days in a week.
         for _, row in df.iterrows():
             uoid = row["95#"]
-            name = row["Name"]
-            for w in range(1, num_weeks + 1):
+            self.all_uoids.append(uoid)
+            for w in self.all_weeks:
                 available = row[f"Availability Week {w}"].split(';')
                 unavailable = row[f"Unavailability Week {w}"].split(';')
                 available = [DAY_TO_INT[d] for d in available]
@@ -77,20 +81,24 @@ class Scheduler:
                 unavailable.sort()
                 ptr1 = 0
                 ptr2 = 0
-                for d in range(7):
-                    self.shifts[(uoid, name, w, d)] = self.model.new_bool_var(f"shift_uoid{uoid}_name{name}_w{w}_day{d}")
+                for d in self.all_days:
+                    self.shifts[(uoid, w, d)] = self.model.new_bool_var(f"shift_uoid{uoid}_w{w}_day{d}")
                     if ptr2 < len(unavailable) and unavailable[ptr2] == d:
-                        self.shift_requests[(uoid, name, w, d)] = -1
+                        self.shift_requests[(uoid, w, d)] = -1
                         ptr2 += 1
                     elif ptr1 < len(available) and available[ptr1] == d:
-                        self.shift_requests[(uoid, name, w, d)] = 1
+                        self.shift_requests[(uoid, w, d)] = 1
                         ptr1 += 1
                     else:
-                        self.shift_requests[(uoid, name, w, d)] = 0
+                        self.shift_requests[(uoid, w, d)] = 0
         return None
 
-    def append_constraint(self):
-       pass
+    def set_constraints(self) -> None:
+        # Each shift is assigned to exactly one uoid.
+        for w in self.all_weeks:
+            for d in self.all_days:
+                self.model.add_exactly_one(self.shifts[(uoid, w, d)] for uoid in self.all_uoids)
+        return None
 
     def set_objective(self):
        pass

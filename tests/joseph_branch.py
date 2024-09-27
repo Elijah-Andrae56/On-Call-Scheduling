@@ -19,6 +19,7 @@ class TestJosephBranch(unittest.TestCase):
 
         df = scheduler.csv_to_df(path_to_csv)
         scheduler.load_df(df)
+        scheduler.set_constraints()
         # Append Constraints
         # Set objective
         # Solve
