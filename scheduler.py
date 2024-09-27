@@ -135,6 +135,17 @@ class Scheduler:
                     num_shifts_worked += self.shifts[(uoid, w, d)]
             self.model.add(self.min_shifts_per_ra <= num_shifts_worked)
             self.model.add(num_shifts_worked <= max_shifts_per_ra)
+
+        # Constraint 7: RAs cannot work more than 3 consecutive shifts
+        # BUG: Does not check for consecutive days that cross week boundaries.
+        for uoid in self.all_uoids:
+            for w in self.all_weeks:
+                for start in range(self.num_days - 3):
+                    consecutive_shifts = sum(
+                        self.shifts[(uoid, w, d)]
+                        for d in range(start, start + 3)
+                    )
+                    self.model.add(consecutive_shifts <= 3)
         return None
 
     def set_objective(self) -> None:
