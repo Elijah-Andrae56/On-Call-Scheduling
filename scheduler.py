@@ -168,11 +168,11 @@ class Scheduler:
             print("Solution:")
             for w in self.all_weeks:
                 print("Week", w)
-                for uoid in self.all_uoids:
-                    for d in self.all_days:
+                for d in self.all_days:
+                    for uoid in self.all_uoids:
                         if self.solver.value(self.shifts[(uoid, w, d)]) == 1:
                             if self.shift_requests[(uoid, w, d)] == 1:
-                                print("RA", self.uoid_to_name[uoid], "works week", w, INT_TO_DAY[d], "(requested).")
+                                print("RA", f"{self.uoid_to_name[uoid]:^8}", "works week", w, INT_TO_DAY[d], "(requested).")
                             else:
                                 print("RA", self.uoid_to_name[uoid], "works week", w, INT_TO_DAY[d], "(not requested).")
                 print()
