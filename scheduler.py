@@ -112,6 +112,8 @@ class Scheduler:
                         ptr1 += 1
                     else:
                         self.shift_requests[(uoid, w, d)] = 0
+                    while ptr1 < len(available) and available[ptr1] < d:
+                        ptr1 += 1
         return None
 
     def set_constraints(self) -> None:
