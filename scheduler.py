@@ -163,7 +163,53 @@ class Scheduler:
                         ptr1 += 1
         return None
 
-    def balance_shifts_per_ra(self, num_shifts: int, condition: Callable[[int], bool]) -> None:
+    def constraint_exactly_one_ra_per_shift(self) -> None:
+        """
+        Each shift is assigned to exactly one RA.
+        """
+        for w in self.all_weeks:
+            for d in self.all_days:
+                for r in self.all_roles:
+                    self.model.add_exactly_one(
+                        self.shifts[(uoid, w, d, r)] 
+                        for uoid in self.all_uoids
+                    )
+        return None
+
+    def constraint_one_ra_per_role_per_day(self) -> None:
+        """
+        An RA can only work one role per shift.
+        """
+        for uoid in self.all_uoids:
+            for w in self.all_weeks:
+                for d in self.all_days:
+                    shift_roles = sum(
+                        self.shifts[(uoid, w, d, r)]
+                        for r in self.all_roles
+                    )
+                    self.model.add(shift_roles != 2)
+        return None
+
+    def constraint_balance_roles_per_ra(self) -> None:
+        """
+        Balance the number of Primary to Secondary shifts for each RA
+        """
+        for uoid in self.all_uoids:
+            primary_shifts = sum(
+                self.shifts[(uoid, w, d, 0)]
+                for w in self.all_weeks
+                for d in self.all_days
+            )
+            secondary_shifts = sum(
+                self.shifts[(uoid, w, d, 1)]
+                for w in self.all_weeks
+                for d in self.all_days
+            )   
+            self.model.add(primary_shifts <= secondary_shifts + 1)
+            self.model.add(secondary_shifts <= primary_shifts + 1)
+        return None
+    
+    def constraint_balance_days_per_ra(self, num_shifts: int, condition: Callable[[int], bool]) -> None:
         """
         Try to distribute the shifts evenly, so that each RA works min_shifts_per_ra shifts.
         If this is not possible, because the total number of shifts is not divisible by the
@@ -185,40 +231,8 @@ class Scheduler:
             self.model.add(num_total_shifts_worked <= max_shifts_per_ra)
         return None
 
-    def set_constraints(self) -> None:
-        # 1: Each shift is assigned to exactly one RA.
-        for w in self.all_weeks:
-            for d in self.all_days:
-                for r in self.all_roles:
-                    self.model.add_exactly_one(self.shifts[(uoid, w, d, r)] for uoid in self.all_uoids)
-        # 2: An RA can only work one role per shift.
-        for uoid in self.all_uoids:
-            for w in self.all_weeks:
-                for d in self.all_days:
-                    shift_roles = sum(
-                        self.shifts[(uoid, w, d, r)]
-                        for r in self.all_roles
-                    )
-                    self.model.add(shift_roles != 2)
-        # 3: Balance the number of Primary to Secondary shifts for each RA
-        for uoid in self.all_uoids:
-            primary_shifts = sum(
-                self.shifts[(uoid, w, d, 0)]
-                for w in self.all_weeks
-                for d in self.all_days
-            )
-            secondary_shifts = sum(
-                self.shifts[(uoid, w, d, 1)]
-                for w in self.all_weeks
-                for d in self.all_days
-            )   
-            self.model.add(primary_shifts <= secondary_shifts + 1)
-            self.model.add(secondary_shifts <= primary_shifts + 1)
-        # 4: Try to distribute weekday, weekend, and total shifts evenly for each RA.
-        self.balance_shifts_per_ra(self.num_shifts, lambda d: True)
-        self.balance_shifts_per_ra(self.num_weekday_shifts, is_weekday)
-        self.balance_shifts_per_ra(self.num_weekend_shifts, is_weekend)
-        # 3: RAs cannot work more than 3 consecutive shifts
+    def constraint_at_most_three_consecutive_shifts_per_ra(self) -> None:
+        # RAs cannot work more than 3 consecutive shifts
         # NOTE: including across week boundaries
         # Example: Jeff cannot work "Friday, Saturday" of Week 1 and "Sunday, Monday" of Week 2
         n = range((self.num_weeks * self.num_days) - 2)
@@ -230,6 +244,16 @@ class Scheduler:
                     for r in self.all_roles
                 )
                 self.model.add(consecutive_shifts <= 3)
+        return None
+
+    def set_constraints(self) -> None:
+        self.constraint_exactly_one_ra_per_shift()
+        self.constraint_one_ra_per_role_per_day()
+        self.constraint_balance_roles_per_ra()
+        self.constraint_balance_days_per_ra(self.num_shifts, lambda d: True)
+        self.constraint_balance_days_per_ra(self.num_weekday_shifts, is_weekday)
+        self.constraint_balance_days_per_ra(self.num_weekend_shifts, is_weekend)
+        self.constraint_at_most_three_consecutive_shifts_per_ra()
         return None
 
     def set_objective(self) -> None:
