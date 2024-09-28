@@ -235,8 +235,6 @@ class Scheduler:
         """Returns the schedule in a DataFrame format, returns with columns
            'Day Number', 'Date', 'Primary RA', 'Secondary RA'"""
         
-        # FIXME Started working on adding week numbers, then got tired before I figured it out
-        
         if self.status == cp_model.OPTIMAL or self.status == cp_model.FEASIBLE:
             schedule_df = pd.DataFrame()
             day_numbers = []
