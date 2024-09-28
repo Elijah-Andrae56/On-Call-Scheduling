@@ -137,21 +137,48 @@ class Scheduler:
             for d in self.all_days:
                 self.model.add_exactly_one(self.shifts[(uoid, w, d)] for uoid in self.all_uoids)
         # 2: Try to distribute the shifts evenly, so that each RA works
-        # min_shifts_per_ra shifts. If this is not possible, because the total
+        # min_shifts_per_ra shifts, min_weekday_shifts_per_ra, and
+        # min_weekend_shifts_per_ra. If this is not possible, because the total
         # number of shifts is not divisible by the number of ras, some ras will
         # be assigned one more shift.
+        # Total Shifts       
         self.min_shifts_per_ra = (self.num_weeks * self.num_days) // self.num_ras
         if self.num_weeks * self.num_days % self.num_ras == 0:
             max_shifts_per_ra = self.min_shifts_per_ra
         else:
             max_shifts_per_ra = self.min_shifts_per_ra + 1
+        # Weekday Shifts
+        min_weekday_shifts_per_ra = self.num_weekdays // self.num_ras
+        if min_weekday_shifts_per_ra % self.num_ras == 0:
+            max_weekday_shifts_per_ra = min_weekday_shifts_per_ra
+        else:
+            max_weekday_shifts_per_ra = min_weekday_shifts_per_ra + 1
+        # Weekend Shifts
+        min_weekend_shifts_per_ra = self.num_weekends // self.num_ras
+        if min_weekend_shifts_per_ra % self.num_ras == 0:
+            max_weekend_shifts_per_ra = min_weekend_shifts_per_ra
+        else:
+            max_weekend_shifts_per_ra = min_weekend_shifts_per_ra + 1
         for uoid in self.all_uoids:
-            num_shifts_worked: Union[cp_model.LinearExpr, int] = 0
+            num_total_shifts_worked: Union[cp_model.LinearExpr, int] = 0
+            num_weekday_shifts_worked: Union[cp_model.LinearExpr, int] = 0
+            num_weekend_shifts_worked: Union[cp_model.LinearExpr, int] = 0
             for w in self.all_weeks:
                 for d in self.all_days:
-                    num_shifts_worked += self.shifts[(uoid, w, d)]
-            self.model.add(self.min_shifts_per_ra <= num_shifts_worked)
-            self.model.add(num_shifts_worked <= max_shifts_per_ra)
+                    if is_weekday(d):
+                        num_weekday_shifts_worked += self.shifts[(uoid, w, d)]
+                    elif is_weekend(d):
+                        num_weekend_shifts_worked += self.shifts[(uoid, w, d)]
+                    num_total_shifts_worked += self.shifts[(uoid, w, d)]
+            # Total shifts
+            self.model.add(self.min_shifts_per_ra <= num_total_shifts_worked)
+            self.model.add(num_total_shifts_worked <= max_shifts_per_ra)
+            # Weekday Shifts
+            self.model.add(min_weekday_shifts_per_ra <= num_weekday_shifts_worked)
+            self.model.add(num_weekday_shifts_worked <= max_weekday_shifts_per_ra)
+            # Weekend Shifts
+            self.model.add(min_weekend_shifts_per_ra <= num_weekend_shifts_worked)
+            self.model.add(num_weekend_shifts_worked <= max_weekend_shifts_per_ra)
         # 3: RAs cannot work more than 3 consecutive shifts
         # BUG: Does not check for consecutive days that cross week boundaries.
         # Example: Jeff works "Friday, Saturday" of week 1 then works "Sunday, Monday" of week 2.
@@ -193,9 +220,23 @@ class Scheduler:
                             else:
                                 print("RA", self.uoid_to_name[uoid], "works week", w, INT_TO_DAY[d], "(not requested).")
                 print()
+            for uoid in self.all_uoids:
+                print("RA", f"{self.uoid_to_name[uoid]}:")
+                total_shifts = 0
+                total_weekday_shifts = 0
+                total_weekend_shifts = 0
+                for w in self.all_weeks:
+                    for d in self.all_days:
+                        if self.solver.value(self.shifts[(uoid, w, d)]) == 1:
+                            total_weekday_shifts += is_weekday(d)
+                            total_weekend_shifts += is_weekend(d)
+                            total_shifts += 1
+                print(f"    Weekday Shifts: {total_weekday_shifts}")
+                print(f"    Weekend Shifts: {total_weekend_shifts}")
+                print("    ---",f"\n    Total Shifts: {total_shifts}")
+                print()
             print(
                 f"Number of shift requests met = {self.solver.objective_value}",
-                f"(out of {self.num_ras * self.min_shifts_per_ra})",
                 "\nTotal Weeks:", self.num_weeks, 
                 "Total Weekdays:", self.num_weekdays, 
                 "Total Weekends:", self.num_weekends
