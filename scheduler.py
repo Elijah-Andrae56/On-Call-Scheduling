@@ -57,19 +57,25 @@ def is_secondary(role_num: int) -> bool:
         
 class Scheduler:
     def __init__(self, leading_offset: int = 3, trailing_offset: int = 0):
+        # Shift Datastructures
         self.shifts: dict = {}
         self.shift_requests: dict = {}
+        # Shape of CSV file
+        self.LEADING_OFFSET: int = leading_offset  #< for Timestamp, Name, 95# columns.
+        self.OFFSET: int = leading_offset + trailing_offset  #< for all columns that are not Availability/Unavailability.
+        # Google Ortools
         self.model: cp_model.CpModel = cp_model.CpModel()
         self.solver: cp_model.CpSolver = cp_model.CpSolver()
         self.status: cp_model.CpSolverStatus = cp_model.UNKNOWN
+        # General Accounting Information
         self.num_weeks: int = 0
-        self.num_days: int = 7
+        self.num_days: int = 7  #< All days of the week.
         self.num_weekdays: int = 0
         self.num_weekends: int = 0
         self.num_shifts: int = 0
         self.num_weekday_shifts: int = 0
         self.num_weekend_shifts: int = 0
-        self.num_roles: int = 2
+        self.num_roles: int = 2  #< Primary and Secondary.
         self.num_ras: int = 0
         self.min_shifts_per_ra: int = 0
         self.all_weeks: Iterable = range(0)
@@ -77,8 +83,6 @@ class Scheduler:
         self.all_roles: Iterable = range(self.num_roles)
         self.all_uoids: Iterable = []
         self.uoid_to_name: dict = {}
-        self.LEADING_OFFSET: int = leading_offset  # for Timestamp, Name, 95# columns
-        self.OFFSET: int = leading_offset + trailing_offset  # for all columns that are not Availability/Unavailability
 
     def csv_to_df(self, path_to_csv: str) -> pd.DataFrame:
         # Use Pandas to convert csv to dataframe.
@@ -209,7 +213,7 @@ class Scheduler:
             self.model.add(secondary_shifts <= primary_shifts + 1)
         return None
     
-    def constraint_balance_days_per_ra(self, num_shifts: int, condition: Callable[[int], bool]) -> None:
+    def constraint_balance_shifts_per_ra(self, num_shifts: int, condition: Callable[[int], bool]) -> None:
         """
         Try to distribute the shifts evenly, so that each RA works min_shifts_per_ra shifts.
         If this is not possible, because the total number of shifts is not divisible by the
@@ -250,9 +254,9 @@ class Scheduler:
         self.constraint_exactly_one_ra_per_shift()
         self.constraint_one_ra_per_role_per_day()
         self.constraint_balance_roles_per_ra()
-        self.constraint_balance_days_per_ra(self.num_shifts, lambda d: True)
-        self.constraint_balance_days_per_ra(self.num_weekday_shifts, is_weekday)
-        self.constraint_balance_days_per_ra(self.num_weekend_shifts, is_weekend)
+        self.constraint_balance_shifts_per_ra(self.num_shifts, lambda d: True)
+        self.constraint_balance_shifts_per_ra(self.num_weekday_shifts, is_weekday)
+        self.constraint_balance_shifts_per_ra(self.num_weekend_shifts, is_weekend)
         self.constraint_at_most_three_consecutive_shifts_per_ra()
         return None
 
