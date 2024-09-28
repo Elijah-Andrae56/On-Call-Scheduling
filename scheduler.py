@@ -27,12 +27,33 @@ INT_TO_DAY = {
 }
 
 
+ROLE_TO_INT = {
+    "Primary": 0,
+    "Secondary": 1
+}
+
+
+INT_TO_ROLE = {
+    ROLE_TO_INT["Primary"]: "Primary",
+    ROLE_TO_INT["Secondary"]: "Secondary"
+}
+
+
 def is_weekday(day_num: int) -> bool:
     return day_num >= 0 and day_num <= 4
 
 
 def is_weekend(day_num: int) -> bool:
     return day_num == 5 or day_num == 6
+
+
+def is_primary(role_num: int) -> bool:
+    return role_num == ROLE_TO_INT["Primary"]
+
+
+def is_secondary(role_num: int) -> bool:
+    return role_num == ROLE_TO_INT["Secondary"]
+
 
         
 class Scheduler:
@@ -46,10 +67,15 @@ class Scheduler:
         self.num_days: int = 7
         self.num_weekdays: int = 0
         self.num_weekends: int = 0
+        self.num_shifts: int = 0
+        self.num_weekday_shifts: int = 0
+        self.num_weekend_shifts: int = 0
+        self.num_roles: int = 2
         self.num_ras: int = 0
         self.min_shifts_per_ra: int = 0
         self.all_weeks: Iterable = range(0)
         self.all_days: Iterable = range(self.num_days)
+        self.all_roles: Iterable = range(self.num_roles)
         self.all_uoids: Iterable = []
         self.uoid_to_name: dict = {}
         self.LEADING_OFFSET: int = leading_offset  # for Timestamp, Name, 95# columns
@@ -61,6 +87,7 @@ class Scheduler:
         # The next N columns are dynamically defined.
         self.num_weeks = (df.shape[1] - self.OFFSET) // 2
         self.all_weeks = range(1, self.num_weeks + 1)
+        self.num_shifts = self.num_weeks * self.num_days * self.num_roles
         # Enforce naming on the dataframe's columns.
         df = df.rename(columns={
             **{
@@ -81,6 +108,8 @@ class Scheduler:
             for d in self.all_days:
                 self.num_weekdays += is_weekday(d)
                 self.num_weekends += is_weekend(d)
+        self.num_weekday_shifts = self.num_weekdays * self.num_roles
+        self.num_weekend_shifts = self.num_weekends * self.num_roles
         # Convert 'Google Form' timestamps (ts) to Pandas datatimes.
         ts_series = df['Timestamp'].str[:-4]
         ts_format = r"%Y/%m/%d %I:%M:%S %p"
@@ -118,15 +147,19 @@ class Scheduler:
                 ptr1 = 0
                 ptr2 = 0
                 for d in self.all_days:
-                    self.shifts[(uoid, w, d)] = self.model.new_bool_var(f"shift_uoid{uoid}_w{w}_day{d}")
+                    for r in self.all_roles:
+                        self.shifts[(uoid, w, d, r)] = self.model.new_bool_var(f"shift_uoid{uoid}_w{w}_day{d}_role{r}")
                     if ptr2 < len(unavailable) and unavailable[ptr2] == d:
-                        self.shift_requests[(uoid, w, d)] = -1
+                        for r in self.all_roles:
+                            self.shift_requests[(uoid, w, d, r)] = -1
                         ptr2 += 1
                     elif ptr1 < len(available) and available[ptr1] == d:
-                        self.shift_requests[(uoid, w, d)] = 1
+                        for r in self.all_roles:
+                            self.shift_requests[(uoid, w, d, r)] = 1
                         ptr1 += 1
                     else:
-                        self.shift_requests[(uoid, w, d)] = 0
+                        for r in self.all_roles:
+                            self.shift_requests[(uoid, w, d, r)] = 0
                     while ptr1 < len(available) and available[ptr1] < d:
                         ptr1 += 1
         return None
@@ -135,26 +168,51 @@ class Scheduler:
         # 1: Each shift is assigned to exactly one RA.
         for w in self.all_weeks:
             for d in self.all_days:
-                self.model.add_exactly_one(self.shifts[(uoid, w, d)] for uoid in self.all_uoids)
-        # 2: Try to distribute the shifts evenly, so that each RA works
+                for r in self.all_roles:
+                    self.model.add_exactly_one(self.shifts[(uoid, w, d, r)] for uoid in self.all_uoids)
+        # 2: An RA can only work one role per shift.
+        for uoid in self.all_uoids:
+            for w in self.all_weeks:
+                for d in self.all_days:
+                    shift_roles = sum(
+                        self.shifts[(uoid, w, d, r)]
+                        for r in self.all_roles
+                    )
+                    self.model.add(shift_roles != 2)
+        # 3: Balance the number of Primary to Secondary shifts for each RA
+        for uoid in self.all_uoids:
+            primary_shifts = sum(
+                self.shifts[(uoid, w, d, 0)]
+                for w in self.all_weeks
+                for d in self.all_days
+            )
+            secondary_shifts = sum(
+                self.shifts[(uoid, w, d, 1)]
+                for w in self.all_weeks
+                for d in self.all_days
+            )   
+            self.model.add(primary_shifts <= secondary_shifts + 1)
+            self.model.add(secondary_shifts <= primary_shifts + 1)
+        # 4: Try to distribute the shifts evenly, so that each RA works
         # min_shifts_per_ra shifts, min_weekday_shifts_per_ra, and
         # min_weekend_shifts_per_ra. If this is not possible, because the total
         # number of shifts is not divisible by the number of ras, some ras will
         # be assigned one more shift.
         # Total Shifts       
-        self.min_shifts_per_ra = (self.num_weeks * self.num_days) // self.num_ras
-        if self.num_weeks * self.num_days % self.num_ras == 0:
+        self.min_shifts_per_ra = self.num_shifts // self.num_ras
+        if self.num_shifts % self.num_ras == 0:
             max_shifts_per_ra = self.min_shifts_per_ra
         else:
             max_shifts_per_ra = self.min_shifts_per_ra + 1
         # Weekday Shifts
-        min_weekday_shifts_per_ra = self.num_weekdays // self.num_ras
+       
+        min_weekday_shifts_per_ra = self.num_weekday_shifts // self.num_ras
         if min_weekday_shifts_per_ra % self.num_ras == 0:
             max_weekday_shifts_per_ra = min_weekday_shifts_per_ra
         else:
             max_weekday_shifts_per_ra = min_weekday_shifts_per_ra + 1
         # Weekend Shifts
-        min_weekend_shifts_per_ra = self.num_weekends // self.num_ras
+        min_weekend_shifts_per_ra = self.num_weekend_shifts // self.num_ras
         if min_weekend_shifts_per_ra % self.num_ras == 0:
             max_weekend_shifts_per_ra = min_weekend_shifts_per_ra
         else:
@@ -165,11 +223,12 @@ class Scheduler:
             num_weekend_shifts_worked: Union[cp_model.LinearExpr, int] = 0
             for w in self.all_weeks:
                 for d in self.all_days:
-                    if is_weekday(d):
-                        num_weekday_shifts_worked += self.shifts[(uoid, w, d)]
-                    elif is_weekend(d):
-                        num_weekend_shifts_worked += self.shifts[(uoid, w, d)]
-                    num_total_shifts_worked += self.shifts[(uoid, w, d)]
+                    for r in self.all_roles:
+                        if is_weekday(d):
+                            num_weekday_shifts_worked += self.shifts[(uoid, w, d, r)]
+                        elif is_weekend(d):
+                            num_weekend_shifts_worked += self.shifts[(uoid, w, d, r)]
+                        num_total_shifts_worked += self.shifts[(uoid, w, d, r)]
             # Total shifts
             self.model.add(self.min_shifts_per_ra <= num_total_shifts_worked)
             self.model.add(num_total_shifts_worked <= max_shifts_per_ra)
@@ -186,8 +245,9 @@ class Scheduler:
         for uoid in self.all_uoids:
             for ptr in n:
                 consecutive_shifts = sum(
-                    self.shifts[(uoid, (i // self.num_days) + 1, i % self.num_days)]
+                    self.shifts[(uoid, (i // self.num_days) + 1, i % self.num_days, r)]
                     for i in range(ptr, ptr + 3)
+                    for r in self.all_roles
                 )
                 self.model.add(consecutive_shifts <= 3)
         return None
@@ -195,10 +255,11 @@ class Scheduler:
     def set_objective(self) -> None:
         self.model.maximize(
             sum(
-                self.shift_requests[(uoid, w, d)] * self.shifts[(uoid, w, d)]
+                self.shift_requests[(uoid, w, d, r)] * self.shifts[(uoid, w, d, r)]
                 for uoid in self.all_uoids
                 for w in self.all_weeks
                 for d in self.all_days
+                for r in self.all_roles
             )
         )
         return None
@@ -213,33 +274,43 @@ class Scheduler:
             for w in self.all_weeks:
                 print("Week", w)
                 for d in self.all_days:
-                    for uoid in self.all_uoids:
-                        if self.solver.value(self.shifts[(uoid, w, d)]) == 1:
-                            if self.shift_requests[(uoid, w, d)] == 1:
-                                print("RA", f"{self.uoid_to_name[uoid]:^8}", "works week", w, INT_TO_DAY[d], "(requested).")
-                            else:
-                                print("RA", self.uoid_to_name[uoid], "works week", w, INT_TO_DAY[d], "(not requested).")
+                    for r in self.all_roles:
+                        for uoid in self.all_uoids:
+                            if self.solver.value(self.shifts[(uoid, w, d, r)]) == 1:
+                                if self.shift_requests[(uoid, w, d, r)] == 1:
+                                    print("RA", f"{self.uoid_to_name[uoid]:^8}", INT_TO_ROLE[r], "works week", w, INT_TO_DAY[d], "(requested).")
+                                else:
+                                    print("RA", self.uoid_to_name[uoid], INT_TO_ROLE[r], "works week", w, INT_TO_DAY[d], "(not requested).")
                 print()
             for uoid in self.all_uoids:
                 print("RA", f"{self.uoid_to_name[uoid]}:")
                 total_shifts = 0
                 total_weekday_shifts = 0
                 total_weekend_shifts = 0
+                total_primary_shifts = 0
+                total_secondary_shifts = 0
                 for w in self.all_weeks:
                     for d in self.all_days:
-                        if self.solver.value(self.shifts[(uoid, w, d)]) == 1:
-                            total_weekday_shifts += is_weekday(d)
-                            total_weekend_shifts += is_weekend(d)
-                            total_shifts += 1
+                        for r in self.all_roles:
+                            if self.solver.value(self.shifts[(uoid, w, d, r)]) == 1:
+                                total_weekday_shifts += is_weekday(d)
+                                total_weekend_shifts += is_weekend(d)
+                                total_primary_shifts += is_primary(r)
+                                total_secondary_shifts += is_secondary(r)
+                                total_shifts += 1
                 print(f"    Weekday Shifts: {total_weekday_shifts}")
                 print(f"    Weekend Shifts: {total_weekend_shifts}")
+                print(f"    Primary Shifts: {total_primary_shifts}")
+                print(f"    Secondary Shifts: {total_secondary_shifts}")
                 print("    ---",f"\n    Total Shifts: {total_shifts}")
                 print()
             print(
                 f"Number of shift requests met = {self.solver.objective_value}",
                 "\nTotal Weeks:", self.num_weeks, 
-                "Total Weekdays:", self.num_weekdays, 
-                "Total Weekends:", self.num_weekends
+                "\nTotal Weekdays:", self.num_weekdays,
+                "\nTotal Weekends:", self.num_weekends,
+                "\nTotal Weekday shifts:", self.num_weekday_shifts, 
+                "\nTotal Weekend shifts:", self.num_weekend_shifts
             )
         else:
             print("No optimal solution found !")
