@@ -8,8 +8,11 @@ current_directory = os.path.dirname(os.path.realpath(__file__))  # pwd
 parent_directory = os.path.dirname(current_directory)            # cd ..
 sys.path.append(parent_directory)                                # add parent dir to PATH
 
-# Now import from file in the parent directory.
-from on_call_scheduling_final import DateManager, Scheduler
+# Import from file in the parent directory.
+from on_call_scheduling_final import Scheduler
+
+# Now import date_manager from parent directory
+from date_manager import DateManager, DateManager
 
 
 class TestScheduleFinal(unittest.TestCase):

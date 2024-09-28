@@ -6,44 +6,6 @@ from ortools.sat.python import cp_model
 import pandas as pd
 import numpy as np
 
-# Define the Date and DateManager classes
-
-@dataclass
-class Date:
-    date: dt.datetime
-    day_number: int
-    is_weekend: bool
-    week_number: int  # Added week_number
-
-    def __str__(self):
-        return f"{self.date}, {self.day_number}, {self.is_weekend}, Week {self.week_number}"
-
-class DateManager:
-    def __init__(self, start_date: dt.datetime, end_date: dt.datetime):
-        self.days = self.generate_days(start_date, end_date)
-        shift_days = self.count_days()
-        self.weekend_shift_count = shift_days[0]
-        self.weekday_shift_count = shift_days[1]
-
-    def __str__(self):
-        return str([str(day) for day in self.days])
-
-    def generate_days(self, start_date, end_date):
-        num_days = (end_date - start_date).days + 1
-        days = []
-        for i in range(num_days):
-            current_date = start_date + dt.timedelta(days=i)
-            day_number = current_date.weekday()  # 0=Monday, 6=Sunday
-            is_weekend = day_number >= 4 and day_number <= 5  # Friday (4) and Saturday (5)
-            week_number = ((current_date - start_date).days) // 7 + 1
-            days.append(Date(current_date, day_number, is_weekend, week_number))
-        return days
-
-    def count_days(self):
-        num_weekend_days = sum(1 for day in self.days if day.is_weekend)
-        num_week_days = len(self.days) - num_weekend_days
-        return (num_weekend_days, num_week_days)
-        
 class Scheduler:
     def __init__(self, time_range):
         self.ras = []
@@ -110,10 +72,13 @@ class Scheduler:
 
         # Keep only the most-recent entry for each 95#.
         df = df.drop_duplicates(subset='95#', keep='first')
+
+        # Build the availability matrix from the data in the dataframe.
+        self.establish_availability_matrix(df)
        
-        # (We might want to return df here for cleaner code)
         # E.g. Function (input: df) -> "set a bunch of self.attributes"
-        self.data = df
+    def establish_availability_matrix(self, dataframe):
+        self.data = dataframe
         self.ras = self.data['Name'].tolist()
         self.num_ras = len(self.ras)
         self.ra_to_index = {ra_name: index for index, ra_name in enumerate(self.ras)}
@@ -303,7 +268,9 @@ class Scheduler:
     def return_schedule(self):
         """Returns the schedule in a DataFrame format, returns with columns
            'Day Number', 'Date', 'Primary RA', 'Secondary RA'"""
+        
         # FIXME Started working on adding week numbers, then got tired before I figured it out
+        
         if self.status == cp_model.OPTIMAL or self.status == cp_model.FEASIBLE:
             schedule_df = pd.DataFrame()
             day_numbers = []
@@ -311,11 +278,13 @@ class Scheduler:
             primary_ras = []
             secondary_ras = []
             dates = []
+
             for day in range(self.num_days):
                 date_info = self.time_range.days[day]
-                day_numbers.append("Day " + str(day.week_number))
+                day_numbers.append("Day " + str(date_info.week_number))
                 # week_numbers.append("Week " + str(day))
                 dates.append(date_info.date.strftime('%Y-%m-%d'))
+
                 for role in self.roles:
                     assigned_ra = "Unassigned"
                     for ra_index, ra in enumerate(self.ras):
