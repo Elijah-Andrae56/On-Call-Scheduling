@@ -26,6 +26,14 @@ INT_TO_DAY = {
     DAY_TO_INT["Saturday"]: "Saturday",
 }
 
+
+def is_weekday(day_num: int) -> bool:
+    return day_num >= 0 and day_num <= 4
+
+
+def is_weekend(day_num: int) -> bool:
+    return day_num == 5 or day_num == 6
+
         
 class Scheduler:
     def __init__(self, leading_offset: int = 3, trailing_offset: int = 0):
@@ -36,6 +44,8 @@ class Scheduler:
         self.status: cp_model.CpSolverStatus = cp_model.UNKNOWN
         self.num_weeks: int = 0
         self.num_days: int = 7
+        self.num_weekdays: int = 0
+        self.num_weekends: int = 0
         self.num_ras: int = 0
         self.min_shifts_per_ra: int = 0
         self.all_weeks: Iterable = range(0)
@@ -50,6 +60,7 @@ class Scheduler:
         df = pd.read_csv(path_to_csv)
         # The next N columns are dynamically defined.
         self.num_weeks = (df.shape[1] - self.OFFSET) // 2
+        self.all_weeks = range(1, self.num_weeks + 1)
         # Enforce naming on the dataframe's columns.
         df = df.rename(columns={
             **{
@@ -65,6 +76,11 @@ class Scheduler:
             for i in range(self.num_weeks)
             },
         })
+        # Count Weekdays and Weekends
+        for _ in self.all_weeks:
+            for d in self.all_days:
+                self.num_weekdays += is_weekday(d)
+                self.num_weekends += is_weekend(d)
         # Convert 'Google Form' timestamps (ts) to Pandas datatimes.
         ts_series = df['Timestamp'].str[:-4]
         ts_format = r"%Y/%m/%d %I:%M:%S %p"
@@ -81,7 +97,6 @@ class Scheduler:
             error_msg += " weeks to unavailable weeks. Try reconfiguring the"
             error_msg += " leading offset and trailing offset."
             raise ValueError(error_msg)
-        self.all_weeks = range(1, self.num_weeks + 1)
         for index, row in df.iterrows():
             uoid = row["95#"]
             self.uoid_to_name[uoid] = row["Name"]
@@ -181,6 +196,9 @@ class Scheduler:
             print(
                 f"Number of shift requests met = {self.solver.objective_value}",
                 f"(out of {self.num_ras * self.min_shifts_per_ra})",
+                "\nTotal Weeks:", self.num_weeks, 
+                "Total Weekdays:", self.num_weekdays, 
+                "Total Weekends:", self.num_weekends
             )
         else:
             print("No optimal solution found !")
