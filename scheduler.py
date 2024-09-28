@@ -77,7 +77,6 @@ class Scheduler:
         self.num_weekend_shifts: int = 0
         self.num_roles: int = 2  #< Primary and Secondary.
         self.num_ras: int = 0
-        self.min_shifts_per_ra: int = 0
         # Iterables/Ranges
         self.all_weeks: Iterable = range(0)
         self.all_days: Iterable = range(self.num_days)
