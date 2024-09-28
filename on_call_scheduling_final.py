@@ -274,15 +274,15 @@ class Scheduler:
         if self.status == cp_model.OPTIMAL or self.status == cp_model.FEASIBLE:
             schedule_df = pd.DataFrame()
             day_numbers = []
-            # week_numbers = []
+            week_numbers = []
             primary_ras = []
             secondary_ras = []
             dates = []
 
             for day in range(self.num_days):
                 date_info = self.time_range.days[day]
-                day_numbers.append("Day " + str(date_info.week_number))
-                # week_numbers.append("Week " + str(day))
+                day_numbers.append("Day " + str(day))
+                week_numbers.append("Week " + str(date_info.week_number))
                 dates.append(date_info.date.strftime('%Y-%m-%d'))
 
                 for role in self.roles:
@@ -297,7 +297,7 @@ class Scheduler:
                         secondary_ras.append(assigned_ra)
      
             schedule_df['Day Number'] = day_numbers
-            # schedule_df['Week Number'] = week_numbers
+            schedule_df['Week Number'] = week_numbers
             schedule_df['Date'] = dates
             schedule_df['Primary RA'] = primary_ras
             schedule_df['Secondary RA'] = secondary_ras
