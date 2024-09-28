@@ -54,7 +54,6 @@ def is_primary(role_num: int) -> bool:
 def is_secondary(role_num: int) -> bool:
     return role_num == ROLE_TO_INT["Secondary"]
 
-
         
 class Scheduler:
     def __init__(self, leading_offset: int = 3, trailing_offset: int = 0):
@@ -205,7 +204,6 @@ class Scheduler:
         else:
             max_shifts_per_ra = self.min_shifts_per_ra + 1
         # Weekday Shifts
-       
         min_weekday_shifts_per_ra = self.num_weekday_shifts // self.num_ras
         if min_weekday_shifts_per_ra % self.num_ras == 0:
             max_weekday_shifts_per_ra = min_weekday_shifts_per_ra
@@ -270,10 +268,8 @@ class Scheduler:
 
     def print_schedule(self) -> None:
         if self.status == cp_model.OPTIMAL:
-            print("Solution:")
             for w in self.all_weeks:
                 print(f'{"Week "+str(w):^68}')
-                # Secondary
                 print(f'{"RA":^17}{"Role":^17}{"Day":^17}{"Preference":^17}')
                 print('-'*68)
                 for d in self.all_days:
@@ -307,7 +303,6 @@ class Scheduler:
                 print(f'{"-"*20:>25}')
                 print(f'{"Total Shifts: " + str(total_shifts):>25}')
                 print()
-            
             print('='*50)
             print("|", end='')
             print(f'{"Schedule Summary":^48}', end='')
@@ -319,7 +314,6 @@ class Scheduler:
             print(f'{str(self.num_weekday_shifts) + " Weekday Shifts":^50}')
             print(f'{str(self.num_weekend_shifts) + " Weekend Shifts":^50}')
             print(f'{str(int(self.solver.objective_value)) + " out of " + str(self.num_shifts) + " Shift requests met":^50}')
-            
         else:
             print("No optimal solution found !")
         return None
