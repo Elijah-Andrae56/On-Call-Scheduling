@@ -15,8 +15,6 @@ class Scheduler:
         self.weekend = [1 if day.is_weekend else 0 for day in time_range.days]
 
         self.roles = [0, 1]  # 0: Primary, 1: Secondary
-        self.preferences = {}  # Initialize preferences here to make it available
-        self.unavailabilities = {}  # Do the same for unavailabilities
         
         self.model = cp_model.CpModel()
         self.x = {}
@@ -118,7 +116,6 @@ class Scheduler:
                         date_indices = week_to_date_indices[week]
                         matching_days = {i for i in date_indices if self.time_range.days[i].day_number in days_set}
                         attr[ra_index].update(matching_days)
-
 
         # Optional: Print preferences and unavailabilities for verification
         print("Preferences:")

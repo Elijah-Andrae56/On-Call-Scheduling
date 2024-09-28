@@ -31,11 +31,7 @@ class TestScheduleFinal(unittest.TestCase):
         
         scheduler.load_data(file_path)
         scheduler.parse_data()
-        
-        # scheduler.build_model()
-        # scheduler.add_constraints()
-        # scheduler.define_objective()
-        # scheduler.solve()
+
         scheduler.run()
 
         test_schedular = scheduler.return_schedule()
