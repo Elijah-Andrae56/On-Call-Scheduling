@@ -1,5 +1,5 @@
 from ortools.sat.python import cp_model
-from typing import Union, Iterable
+from typing import Union, Iterable, Callable
 import pandas as pd
 
 
@@ -163,6 +163,28 @@ class Scheduler:
                         ptr1 += 1
         return None
 
+    def balance_shifts_per_ra(self, num_shifts: int, condition: Callable[[int], bool]) -> None:
+        """
+        Try to distribute the shifts evenly, so that each RA works min_shifts_per_ra shifts.
+        If this is not possible, because the total number of shifts is not divisible by the
+        number of ras, some ras will be assigned one more shift.
+        """
+        min_shifts_per_ra = num_shifts // self.num_ras
+        if num_shifts % self.num_ras == 0:
+            max_shifts_per_ra = min_shifts_per_ra
+        else:
+            max_shifts_per_ra = min_shifts_per_ra + 1
+        for uoid in self.all_uoids:
+            num_total_shifts_worked: Union[cp_model.LinearExpr, int] = 0
+            for w in self.all_weeks:
+                for d in self.all_days:
+                    for r in self.all_roles:
+                        if condition(d):
+                            num_total_shifts_worked += self.shifts[(uoid, w, d, r)]
+            self.model.add(min_shifts_per_ra <= num_total_shifts_worked)
+            self.model.add(num_total_shifts_worked <= max_shifts_per_ra)
+        return None
+
     def set_constraints(self) -> None:
         # 1: Each shift is assigned to exactly one RA.
         for w in self.all_weeks:
@@ -192,50 +214,10 @@ class Scheduler:
             )   
             self.model.add(primary_shifts <= secondary_shifts + 1)
             self.model.add(secondary_shifts <= primary_shifts + 1)
-        # 4: Try to distribute the shifts evenly, so that each RA works
-        # min_shifts_per_ra shifts, min_weekday_shifts_per_ra, and
-        # min_weekend_shifts_per_ra. If this is not possible, because the total
-        # number of shifts is not divisible by the number of ras, some ras will
-        # be assigned one more shift.
-        # Total Shifts       
-        self.min_shifts_per_ra = self.num_shifts // self.num_ras
-        if self.num_shifts % self.num_ras == 0:
-            max_shifts_per_ra = self.min_shifts_per_ra
-        else:
-            max_shifts_per_ra = self.min_shifts_per_ra + 1
-        # Weekday Shifts
-        min_weekday_shifts_per_ra = self.num_weekday_shifts // self.num_ras
-        if min_weekday_shifts_per_ra % self.num_ras == 0:
-            max_weekday_shifts_per_ra = min_weekday_shifts_per_ra
-        else:
-            max_weekday_shifts_per_ra = min_weekday_shifts_per_ra + 1
-        # Weekend Shifts
-        min_weekend_shifts_per_ra = self.num_weekend_shifts // self.num_ras
-        if min_weekend_shifts_per_ra % self.num_ras == 0:
-            max_weekend_shifts_per_ra = min_weekend_shifts_per_ra
-        else:
-            max_weekend_shifts_per_ra = min_weekend_shifts_per_ra + 1
-        for uoid in self.all_uoids:
-            num_total_shifts_worked: Union[cp_model.LinearExpr, int] = 0
-            num_weekday_shifts_worked: Union[cp_model.LinearExpr, int] = 0
-            num_weekend_shifts_worked: Union[cp_model.LinearExpr, int] = 0
-            for w in self.all_weeks:
-                for d in self.all_days:
-                    for r in self.all_roles:
-                        if is_weekday(d):
-                            num_weekday_shifts_worked += self.shifts[(uoid, w, d, r)]
-                        elif is_weekend(d):
-                            num_weekend_shifts_worked += self.shifts[(uoid, w, d, r)]
-                        num_total_shifts_worked += self.shifts[(uoid, w, d, r)]
-            # Total shifts
-            self.model.add(self.min_shifts_per_ra <= num_total_shifts_worked)
-            self.model.add(num_total_shifts_worked <= max_shifts_per_ra)
-            # Weekday Shifts
-            self.model.add(min_weekday_shifts_per_ra <= num_weekday_shifts_worked)
-            self.model.add(num_weekday_shifts_worked <= max_weekday_shifts_per_ra)
-            # Weekend Shifts
-            self.model.add(min_weekend_shifts_per_ra <= num_weekend_shifts_worked)
-            self.model.add(num_weekend_shifts_worked <= max_weekend_shifts_per_ra)
+        # 4: Try to distribute weekday, weekend, and total shifts evenly for each RA.
+        self.balance_shifts_per_ra(self.num_shifts, lambda d: True)
+        self.balance_shifts_per_ra(self.num_weekday_shifts, is_weekday)
+        self.balance_shifts_per_ra(self.num_weekend_shifts, is_weekend)
         # 3: RAs cannot work more than 3 consecutive shifts
         # NOTE: including across week boundaries
         # Example: Jeff cannot work "Friday, Saturday" of Week 1 and "Sunday, Monday" of Week 2
