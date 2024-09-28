@@ -180,16 +180,16 @@ class Scheduler:
             self.model.add(min_weekend_shifts_per_ra <= num_weekend_shifts_worked)
             self.model.add(num_weekend_shifts_worked <= max_weekend_shifts_per_ra)
         # 3: RAs cannot work more than 3 consecutive shifts
-        # BUG: Does not check for consecutive days that cross week boundaries.
-        # Example: Jeff works "Friday, Saturday" of week 1 then works "Sunday, Monday" of week 2.
+        # NOTE: including cross week boundaries
+        # Example: Jeff cannot work "Friday, Saturday" of Week 1 and "Sunday, Monday" of Week 2
+        n = range((self.num_weeks * self.num_days) - 2)
         for uoid in self.all_uoids:
-            for w in self.all_weeks:
-                for start in range(self.num_days - 3):
-                    consecutive_shifts = sum(
-                        self.shifts[(uoid, w, d)]
-                        for d in range(start, start + 3)
-                    )
-                    self.model.add(consecutive_shifts <= 3)
+            for ptr in n:
+                consecutive_shifts = sum(
+                    self.shifts[(uoid, (i // self.num_days) + 1, i % self.num_days)]
+                    for i in range(ptr, ptr + 3)
+                )
+                self.model.add(consecutive_shifts <= 3)
         return None
 
     def set_objective(self) -> None:
