@@ -272,18 +272,20 @@ class Scheduler:
         if self.status == cp_model.OPTIMAL:
             print("Solution:")
             for w in self.all_weeks:
-                print("Week", w)
+                print(f'{"Week "+str(w):^68}')
+                # Secondary
+                print(f'{"RA":^17}{"Role":^17}{"Day":^17}{"Preference":^17}')
+                print('-'*68)
                 for d in self.all_days:
                     for r in self.all_roles:
                         for uoid in self.all_uoids:
                             if self.solver.value(self.shifts[(uoid, w, d, r)]) == 1:
-                                if self.shift_requests[(uoid, w, d, r)] == 1:
-                                    print("RA", f"{self.uoid_to_name[uoid]:^8}", INT_TO_ROLE[r], "works week", w, INT_TO_DAY[d], "(requested).")
-                                else:
-                                    print("RA", self.uoid_to_name[uoid], INT_TO_ROLE[r], "works week", w, INT_TO_DAY[d], "(not requested).")
+                                pref_str = "(requested)" if self.shift_requests[(uoid, w, d, r)] == 1 else "(not requested)"
+                                print(f'{self.uoid_to_name[uoid]:<17}{INT_TO_ROLE[r]:<17}{INT_TO_DAY[d]:<17}{pref_str:<17}')
                 print()
             for uoid in self.all_uoids:
-                print("RA", f"{self.uoid_to_name[uoid]}:")
+                print(f'{"RA " + self.uoid_to_name[uoid] + " Shift Summary":<25}')
+                print('='*25)
                 total_shifts = 0
                 total_weekday_shifts = 0
                 total_weekend_shifts = 0
@@ -298,20 +300,26 @@ class Scheduler:
                                 total_primary_shifts += is_primary(r)
                                 total_secondary_shifts += is_secondary(r)
                                 total_shifts += 1
-                print(f"    Weekday Shifts: {total_weekday_shifts}")
-                print(f"    Weekend Shifts: {total_weekend_shifts}")
-                print(f"    Primary Shifts: {total_primary_shifts}")
-                print(f"    Secondary Shifts: {total_secondary_shifts}")
-                print("    ---",f"\n    Total Shifts: {total_shifts}")
+                print(f'{str(total_weekday_shifts) + " Weekday Shifts":>25}')
+                print(f'{str(total_weekend_shifts) + " Weekend Shifts":>25}')
+                print(f'{str(total_primary_shifts) + " Primary Shifts":>25}')
+                print(f'{str(total_secondary_shifts) + " Secondary Shifts":>25}')
+                print(f'{"-"*20:>25}')
+                print(f'{"Total Shifts: " + str(total_shifts):>25}')
                 print()
-            print(
-                f"Number of shift requests met = {self.solver.objective_value}",
-                "\nTotal Weeks:", self.num_weeks, 
-                "\nTotal Weekdays:", self.num_weekdays,
-                "\nTotal Weekends:", self.num_weekends,
-                "\nTotal Weekday shifts:", self.num_weekday_shifts, 
-                "\nTotal Weekend shifts:", self.num_weekend_shifts
-            )
+            
+            print('='*50)
+            print("|", end='')
+            print(f'{"Schedule Summary":^48}', end='')
+            print("|")
+            print('='*50)
+            print(f'{str(self.num_weeks) + " Weeks":^50}')
+            print(f'{str(self.num_weekdays) + " Weekdays":^50}')
+            print(f'{str(self.num_weekends) + " Weekends":^50}')
+            print(f'{str(self.num_weekday_shifts) + " Weekday Shifts":^50}')
+            print(f'{str(self.num_weekend_shifts) + " Weekend Shifts":^50}')
+            print(f'{str(int(self.solver.objective_value)) + " out of " + str(self.num_shifts) + " Shift requests met":^50}')
+            
         else:
             print("No optimal solution found !")
         return None
