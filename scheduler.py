@@ -255,7 +255,7 @@ class Scheduler:
         self.constraint_exactly_one_ra_per_shift()
         self.constraint_one_ra_per_role_per_day()
         self.constraint_balance_roles_per_ra()
-        self.constraint_balance_shifts_per_ra(self.num_shifts, lambda d: True)
+        self.constraint_balance_shifts_per_ra(self.num_shifts, lambda _: True)
         self.constraint_balance_shifts_per_ra(self.num_weekday_shifts, is_weekday)
         self.constraint_balance_shifts_per_ra(self.num_weekend_shifts, is_weekend)
         self.constraint_at_most_three_consecutive_shifts_per_ra()
