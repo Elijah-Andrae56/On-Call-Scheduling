@@ -13,7 +13,11 @@ class Scheduler:
         self.num_ras = len(self.ras)
         self.num_days = len(time_range.days)
         self.weekend = [1 if day.is_weekend else 0 for day in time_range.days]
+
         self.roles = [0, 1]  # 0: Primary, 1: Secondary
+        self.preferences = {}  # Initialize preferences here to make it available
+        self.unavailabilities = {}  # Do the same for unavailabilities
+        
         self.model = cp_model.CpModel()
         self.x = {}
         self.data = None  # Placeholder for the data from the form
@@ -76,80 +80,45 @@ class Scheduler:
         # Build the availability matrix from the data in the dataframe.
         self.establish_availability_matrix(df)
        
-        # E.g. Function (input: df) -> "set a bunch of self.attributes"
+
     def establish_availability_matrix(self, dataframe):
+        """Build the availability matrix from the data in the dataframe."""
         self.data = dataframe
         self.ras = self.data['Name'].tolist()
         self.num_ras = len(self.ras)
         self.ra_to_index = {ra_name: index for index, ra_name in enumerate(self.ras)}
 
     def parse_data(self):
-        # Initialize preferences and unavailabilities dictionaries
-        self.preferences = {}
-        self.unavailabilities = {}
-
-        # Map day names to day numbers
+        # Initialize dictionaries
+        self.preferences = {ra_index: set() for ra_index in range(self.num_ras)}
+        self.unavailabilities = {ra_index: set() for ra_index in range(self.num_ras)}
+        
+        # Map day names to numbers
         day_name_to_number = {
-            'Monday': 0,
-            'Tuesday': 1,
-            'Wednesday': 2,
-            'Wednsday': 2,  # Handle common misspelling
-            'Thursday': 3,
-            'Friday': 4,
-            'Saturday': 5,
-            'Sunday': 6
+            'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Wednsday': 2,
+            'Thursday': 3, 'Friday': 4, 'Saturday': 5, 'Sunday': 6
         }
-
-        # Build a mapping from week numbers to date indices
+        
+        # Build week to date indices mapping
         week_to_date_indices = {}
         for i, date in enumerate(self.time_range.days):
-            week_number = date.week_number
-            if week_number not in week_to_date_indices:
-                week_to_date_indices[week_number] = []
-            week_to_date_indices[week_number].append(i)
-
-        # Iterate over each RA's response
-        for index, row in self.data.iterrows():
+            week_to_date_indices.setdefault(date.week_number, []).append(i)
+        
+        # Iterate over RAs
+        for _, row in self.data.iterrows():
             ra_name = row['Name']
-            ra_index = self.ra_to_index[ra_name]
+            ra_index = self.ra_to_index[ra_name]  # Correctly get the RA index
+            for week in week_to_date_indices:
+                for col_prefix, attr in [('Availability', self.preferences), ('Unavailability', self.unavailabilities)]:
+                    column = f'{col_prefix} Week {week}'
+                    if column in row and pd.notna(row[column]):
+                        days = [day.strip().capitalize() for day in row[column].split(';')]
+                        day_numbers = [day_name_to_number.get(day) for day in days if day]
+                        days_set = set(filter(None, day_numbers))
+                        date_indices = week_to_date_indices[week]
+                        matching_days = {i for i in date_indices if self.time_range.days[i].day_number in days_set}
+                        attr[ra_index].update(matching_days)
 
-            # Initialize sets for preferred and unavailable days
-            preferred_days = set()
-            unavailable_days = set()
-
-            # Parse availability
-            for week in range(1, max(week_to_date_indices.keys()) + 1):
-                availability_column = f'Availability Week {week}'
-                if availability_column in row and pd.notna(row[availability_column]):
-                    days = row[availability_column].split(';')
-                    days = [day.strip() for day in days]
-                    for day in days:
-                        day_clean = day.strip().capitalize()
-                        day_number = day_name_to_number.get(day_clean)
-                        if day_number is not None:
-                            date_indices = week_to_date_indices.get(week, [])
-                            for i in date_indices:
-                                if self.time_range.days[i].day_number == day_number:
-                                    preferred_days.add(i)
-
-            # Parse unavailability
-            for week in range(1, max(week_to_date_indices.keys()) + 1):
-                unavailability_column = f'Unavailability Week {week}'
-                if unavailability_column in row and pd.notna(row[unavailability_column]):
-                    days = row[unavailability_column].split(';')
-                    days = [day.strip() for day in days]
-                    for day in days:
-                        day_clean = day.strip().capitalize()
-                        day_number = day_name_to_number.get(day_clean)
-                        if day_number is not None:
-                            date_indices = week_to_date_indices.get(week, [])
-                            for i in date_indices:
-                                if self.time_range.days[i].day_number == day_number:
-                                    unavailable_days.add(i)
-
-            # Update preferences and unavailabilities
-            self.preferences[ra_index] = preferred_days
-            self.unavailabilities[ra_index] = unavailable_days
 
         # Optional: Print preferences and unavailabilities for verification
         print("Preferences:")
