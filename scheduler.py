@@ -78,10 +78,12 @@ class Scheduler:
         self.num_roles: int = 2  #< Primary and Secondary.
         self.num_ras: int = 0
         self.min_shifts_per_ra: int = 0
+        # Iterables/Ranges
         self.all_weeks: Iterable = range(0)
         self.all_days: Iterable = range(self.num_days)
         self.all_roles: Iterable = range(self.num_roles)
         self.all_uoids: Iterable = []
+        # Logging Tools
         self.uoid_to_name: dict = {}
 
     def csv_to_df(self, path_to_csv: str) -> pd.DataFrame:
