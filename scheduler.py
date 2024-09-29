@@ -192,7 +192,7 @@ class Scheduler:
                         self.shifts[(uoid, w, d, r)]
                         for r in self.all_roles
                     )
-                    self.model.add(shift_roles != 2)
+                    self.model.add(shift_roles < 2)
         return None
 
     def constraint_balance_roles_per_ra(self) -> None:
