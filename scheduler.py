@@ -328,3 +328,25 @@ class Scheduler:
         else:
             print("No optimal solution found !")
         return None
+    
+    def get_dataframe(self):
+        """Returns a pandas dataframe with the schedule"""
+        if self.status != cp_model.OPTIMAL:
+            assert False, 'Model is not OPTIMAL'
+        schedule_data = [] 
+        for w in self.all_weeks:
+            for d in self.all_days:
+                for r in self.all_roles:
+                    for uoid in self.all_uoids:
+                         if self.solver.value(self.shifts[(uoid, w, d, r)]) == 1:
+                            pref_str = "(requested)" if self.shift_requests[(uoid, w, d, r)] == 1 else "(not requested)"
+                            schedule_data.append({
+                                'Week': f'Week {w}',
+                                'RA': self.uoid_to_name[uoid],
+                                'Role': INT_TO_ROLE[r],
+                                'Day': INT_TO_DAY[d],
+                                'Preference': pref_str
+                            })
+        schedule_df = pd.DataFrame(schedule_data)
+        return schedule_df
+                            
