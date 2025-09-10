@@ -67,7 +67,13 @@ By filling out this form, you provide the necessary data for the scheduler to ge
 
 1. **Prepare the Availability Data**
 
-   Ensure all RAs have filled out the [On-Call Availability Form](https://docs.google.com/forms/d/e/1FAIpQLScU_GKuOyepmiIuW-9scQHOhAViftG3sAhm7SkTvF2Zr-zV7Q/viewform?usp=sf_link). The responses should be collected and saved as a CSV file.
+   Ensure all RAs have filled out the **On-Call Availability Form**. The responses should be collected and saved as a CSV file. An example can be found [here](https://docs.google.com/forms/d/e/1FAIpQLScU_GKuOyepmiIuW-9scQHOhAViftG3sAhm7SkTvF2Zr-zV7Q/viewform?usp=sf_link).
+    - Form completion: 
+      1. Enter Name (Nickname if testing)
+      2. 95# (unique code if testing)
+      3. Choose preferred shifts (Optional minimum limit decided by CD)
+      4. Choose blackout shifts (Optional max limit set by CD)
+      5. Comment Section
 
 2. **Set the Date Range**
 
@@ -165,7 +171,6 @@ For any questions or suggestions, please contact Elijah Andrae at [elijah.andrae
 
 - [Google OR-Tools](https://developers.google.com/optimization) for the constraint programming library.
 - The Barnhart RA team for providing test-availability data.
-- ChatGPT-4o and ChatGPT-o1
 
 # Notes
 
